@@ -14,6 +14,22 @@ public class HttpRequestUtils {
         return split[1];
     }
 
+    public static String getParameters(final String url) {
+        return url.split("[?]")[1];
+    }
+
+    public static String getParameter(final String parameters, final String key) {
+        String[] keyValues = parameters.split("[&]");
+        for (String keyValue : keyValues) {
+            String splitKey = keyValue.split("[=]")[0];
+            String value = keyValue.split("[=]")[1];
+            if (splitKey.equals(key)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     /**
      * @param queryString은
      *            URL에서 ? 이후에 전달되는 field1=value1&field2=value2 형식임

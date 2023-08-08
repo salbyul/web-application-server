@@ -70,4 +70,11 @@ public class HttpRequestUtilsTest {
         Pair pair = HttpRequestUtils.parseHeader(header);
         assertThat(pair, is(new Pair("Content-Length", "59")));
     }
+
+    @Test
+    public void getParameters() {
+        String url = "/user/create?userId=test&password=12345&name=kim&email=eee%40eee.com";
+        String parameters = HttpRequestUtils.getParameters(url);
+        assertThat(parameters, is("userId=test&password=12345&name=kim&email=eee%40eee.com"));
+    }
 }
