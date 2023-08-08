@@ -10,6 +10,7 @@ import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
+import util.IOUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -27,21 +28,17 @@ public class RequestHandler extends Thread {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             String line = br.readLine();
-            log.info("line: [{}]", line);
             if (line == null) {
                 return;
             }
             String url = HttpRequestUtils.getUrl(line);
             if (url.startsWith("/user/create")) {
                 String parameters = HttpRequestUtils.getParameters(url);
-                Map<String, String> parametersMap = HttpRequestUtils.parseQueryString(parameters);
-                String userId = parametersMap.get("userId");
-                String password = parametersMap.get("password");
-                String name = parametersMap.get("name");
-                String email = parametersMap.get("email");
-                User user = new User(userId, password, name, email);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(parameters);
+                User user = new User(
+                        params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
                 log.info("New User: [{}]", user);
-                return;
+                url = HttpRequestUtils.DEFAULT_URL;
             }
             byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
             DataOutputStream dos = new DataOutputStream(out);

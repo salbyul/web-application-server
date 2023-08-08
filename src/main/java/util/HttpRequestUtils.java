@@ -9,9 +9,15 @@ import com.google.common.collect.Maps;
 
 public class HttpRequestUtils {
 
+    public static final String DEFAULT_URL = "/index.html";
+
     public static String getUrl(final String line) {
         String[] split = line.split(" ");
-        return split[1];
+        String url = split[1];
+        if (url.equals("/")) {
+            url = DEFAULT_URL;
+        }
+        return url;
     }
 
     public static String getParameters(final String url) {
