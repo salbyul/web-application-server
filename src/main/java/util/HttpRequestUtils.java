@@ -6,10 +6,12 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import cookie.Cookie;
 
 public class HttpRequestUtils {
 
     public static final String DEFAULT_URL = "/index.html";
+    public static final String LOGIN_FAILED_URL = "/user/login_failed.html";
 
     public static String getUrl(final String line) {
         String[] split = line.split(" ");
@@ -25,8 +27,7 @@ public class HttpRequestUtils {
     }
 
     /**
-     * @param queryString은
-     *            URL에서 ? 이후에 전달되는 field1=value1&field2=value2 형식임
+     * @param queryString queryString은URL에서 ? 이후에 전달되는 field1=value1&field2=value2 형식임
      * @return
      */
     public static Map<String, String> parseQueryString(String queryString) {
@@ -34,12 +35,14 @@ public class HttpRequestUtils {
     }
 
     /**
-     * @param 쿠키
-     *            값은 name1=value1; name2=value2 형식임
+     * @param cookies 쿠키값은 name1=value1; name2=value2 형식임
      * @return
      */
-    public static Map<String, String> parseCookies(String cookies) {
-        return parseValues(cookies, ";");
+    public static Map<String, Cookie> parseCookies(String cookies) {
+        Map<String, String> stringCookiesMap = parseValues(cookies, ";");
+        return stringCookiesMap.entrySet().stream()
+                .map(entry -> new Cookie(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toMap(Cookie::getKey, cookie -> cookie));
     }
 
     private static Map<String, String> parseValues(String values, String separator) {
