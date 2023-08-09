@@ -10,6 +10,7 @@ import java.util.Map;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.HttpMethodUtils;
 import util.HttpRequestUtils;
 import util.IOUtils;
 
@@ -28,39 +29,68 @@ public class RequestHandler extends Thread {
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            Map<String, String> headers = new HashMap<>();
+            DataOutputStream dos = new DataOutputStream(out);
             String line = br.readLine();
             if (line == null) {
                 return;
             }
             String url = HttpRequestUtils.getUrl(line);
-            while (!"".equals(line = br.readLine())) {
-                log.debug("line: {}", line);
-                String[] split = line.split(": ");
-                if (split.length == 2) {
-                    headers.put(split[0], split[1]);
-                }
-            }
+            HttpMethodUtils method = HttpMethodUtils.getMethod(line.substring(0, line.indexOf(" ")));
+            log.debug("method: {}", method);
+            Map<String, String> header = generateHeader(br);
             if (url.startsWith("/user/create")) {
-                String contentLength = headers.get("Content-Length");
+                String contentLength = header.get("Content-Length");
                 String requestBody = IOUtils.readData(br, Integer.parseInt(contentLength));
                 Map<String, String> params = HttpRequestUtils.parseQueryString(requestBody);
                 User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
                 log.info("New User: {}", user);
                 url = HttpRequestUtils.DEFAULT_URL;
             }
-            byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
-            DataOutputStream dos = new DataOutputStream(out);
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+            writeResponse(dos, url, method);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
 
+    private Map<String, String> generateHeader(final BufferedReader br) throws IOException {
+        Map<String, String> header = new HashMap<>();
+        String line;
+        while (!"".equals(line = br.readLine())) {
+            log.debug("line: {}", line);
+            String[] split = line.split(": ");
+            if (split.length == 2) {
+                header.put(split[0], split[1]);
+            }
+        }
+        return header;
+    }
+
+    private void writeResponse(final DataOutputStream dos, final String url, final HttpMethodUtils method) throws IOException {
+        byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
+        if (method.isPost()) {
+            response303Header(dos, body.length);
+        }
+        if (method.isGet()) {
+            response200Header(dos, body.length);
+        }
+        responseBody(dos, body);
+    }
+
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response303Header(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 303 See Other \r\n");
+            dos.writeBytes("Location: /index.html \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
