@@ -102,18 +102,28 @@ public class RequestHandler extends Thread {
 
     private void writeResponse(final DataOutputStream dos, final String url, final Map<String, Cookie> cookies, final HttpStatusCode code) throws IOException {
         byte[] body;
+        String contentType = extractContentType(url);
         if (url.equals("/user/list.html")) {
             body = getBody(url);
         } else {
             body = Files.readAllBytes(new File("./webapp" + url).toPath());
         }
         dos.writeBytes(HttpRequestUtils.getFirstLineHttpProtocol(code) + " \r\n");
-        dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+        dos.writeBytes("Content-Type: " + contentType + "\r\n");
         dos.writeBytes("Content-Length: " + body.length + "\r\n");
         setCookies(cookies, dos);
         dos.writeBytes("\r\n");
 
         responseBody(dos, body);
+    }
+
+    private String extractContentType(final String url) {
+        if (url.length() >= 5 && url.contains(".css")) {
+            return "text/css;charset=utf-8";
+        } else if (url.length() >= 4 && url.contains(".js")) {
+            return "text/javascript;charset=utf-8";
+        }
+        return "text/html;charset=utf-8";
     }
 
     private byte[] getBody(final String url) throws IOException {
