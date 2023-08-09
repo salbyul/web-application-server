@@ -1,6 +1,7 @@
 package util;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,14 @@ public class HttpRequestUtils {
 
     public static final String DEFAULT_URL = "/index.html";
     public static final String LOGIN_FAILED_URL = "/user/login_failed.html";
+    public static final Map<HttpStatusCode, String> firstLineHttpProtocolMap = new HashMap<>();
+
+    static {
+        firstLineHttpProtocolMap.put(HttpStatusCode.OK, "HTTP/1.1 200 OK");
+        firstLineHttpProtocolMap.put(HttpStatusCode.FORBIDDEN, "HTTP/1.1 403 Forbidden");
+        firstLineHttpProtocolMap.put(HttpStatusCode.BAD_REQUEST, "HTTP/1.1 400 Bad Request");
+        firstLineHttpProtocolMap.put(HttpStatusCode.SEE_OTHER, "HTTP/1.1 303 See Other");
+    }
 
     public static String getUrl(final String line) {
         String[] split = line.split(" ");
@@ -20,6 +29,9 @@ public class HttpRequestUtils {
             url = DEFAULT_URL;
         }
         return url;
+    }
+    public static String getFirstLineHttpProtocol(final HttpStatusCode code) {
+        return firstLineHttpProtocolMap.get(code);
     }
 
     public static String getParameters(final String url) {
