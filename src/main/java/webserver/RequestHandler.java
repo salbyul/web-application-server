@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.Map;
 
 import model.User;
@@ -27,17 +28,25 @@ public class RequestHandler extends Thread {
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            Map<String, String> headers = new HashMap<>();
             String line = br.readLine();
             if (line == null) {
                 return;
             }
             String url = HttpRequestUtils.getUrl(line);
+            while (!"".equals(line = br.readLine())) {
+                log.debug("line: {}", line);
+                String[] split = line.split(": ");
+                if (split.length == 2) {
+                    headers.put(split[0], split[1]);
+                }
+            }
             if (url.startsWith("/user/create")) {
-                String parameters = HttpRequestUtils.getParameters(url);
-                Map<String, String> params = HttpRequestUtils.parseQueryString(parameters);
-                User user = new User(
-                        params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
-                log.info("New User: [{}]", user);
+                String contentLength = headers.get("Content-Length");
+                String requestBody = IOUtils.readData(br, Integer.parseInt(contentLength));
+                Map<String, String> params = HttpRequestUtils.parseQueryString(requestBody);
+                User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+                log.info("New User: {}", user);
                 url = HttpRequestUtils.DEFAULT_URL;
             }
             byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
