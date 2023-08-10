@@ -60,4 +60,47 @@ public class HttpRequest {
     public String getParameter(final String key) {
         return body.get(key);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        if (method.isGet()) {
+            sb.append(method).append(" ").append(uri);
+            if (body.size() > 0) {
+                sb.append("?");
+                for (String key : body.keySet()) {
+                    sb.append(key).append("=").append(body.get(key)).append("&");
+                }
+                sb.delete(sb.length() - 1, sb.length());
+            }
+            sb.append(" ").append(version).append("\n");
+            for (String key : headers.keySet()) {
+                sb.append(key).append(": ").append(headers.get(key)).append("\n");
+            }
+            if (cookies.size() > 0) {
+                sb.append("Cookie: ");
+                for (String key : cookies.keySet()) {
+                    sb.append(key).append("=").append(cookies.get(key).getValue()).append("; ");
+                }
+                sb.delete(sb.length() - 2, sb.length()).append("\n");
+            }
+            return sb.toString();
+        }
+        sb.append(method).append(" ").append(uri).append(" ").append(version).append("\n");
+        for (String key : headers.keySet()) {
+            sb.append(key).append(": ").append(headers.get(key)).append("\n");
+        }
+        if (cookies.size() > 0) {
+            sb.append("Cookie: ");
+            for (String key : cookies.keySet()) {
+                sb.append(key).append("=").append(cookies.get(key).getValue()).append("; ");
+            }
+            sb.delete(sb.length() - 2, sb.length()).append("\n\n");
+            for (String key : body.keySet()) {
+                sb.append(key).append("=").append(body.get(key)).append("&");
+            }
+            sb.delete(sb.length() - 1, sb.length());
+        }
+        return sb.toString();
+    }
 }
