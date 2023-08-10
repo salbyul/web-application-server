@@ -30,21 +30,29 @@ public class HttpRequestUtils {
         try {
             String line = br.readLine();
             if (line == null) {
-                throw new AssertionError();
+                return null;
             }
             String[] requestLineSplit = line.split(" ");
             if (requestLineSplit.length != 3) {
-                throw new AssertionError();
+                throw new HttpRequestException(ERROR_PARSE_HTTP_REQUEST);
             }
-            String url = requestLineSplit[1];
             String method = requestLineSplit[0];
+            String url = requestLineSplit[1];
             String httpVersion = requestLineSplit[2];
+            if (HttpMethod.isGet(method)) {
+                url = url.split("[?]")[0];
+            }
             Map<String, String> headers = generateHeader(br);
             Map<String, Cookie> cookies = HttpRequestUtils.parseCookies(headers.get("Cookie"));
             headers.remove("Cookie");
-            if (headers.containsKey("Content-Length") && Integer.parseInt(headers.get("Content-Length")) > 0) {
+            if (HttpMethod.isPost(method) && headers.containsKey("Content-Length") && Integer.parseInt(headers.get("Content-Length")) > 0) {
                 String requestBody = IOUtils.readData(br, Integer.parseInt(headers.get("Content-Length")));
                 Map<String, String> body = parseQueryString(requestBody);
+                return new HttpRequest(HttpMethod.toMethod(method), url, httpVersion, headers, cookies, body);
+            }
+            if (HttpMethod.isGet(method) && requestLineSplit[1].contains("?")) {
+                String parameters = requestLineSplit[1].split("[?]")[1];
+                Map<String, String> body = parseQueryString(parameters);
                 return new HttpRequest(HttpMethod.toMethod(method), url, httpVersion, headers, cookies, body);
             }
             return new HttpRequest(HttpMethod.toMethod(method), url, httpVersion, headers, cookies);

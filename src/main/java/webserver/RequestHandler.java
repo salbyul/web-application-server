@@ -8,6 +8,7 @@ import java.util.*;
 
 import cookie.Cookie;
 import db.DataBase;
+import exception.HttpRequestException;
 import http.request.HttpRequest;
 import model.User;
 import org.slf4j.Logger;
@@ -33,19 +34,21 @@ public class RequestHandler extends Thread {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             DataOutputStream dos = new DataOutputStream(out);
             HttpRequest httpRequest = HttpRequestUtils.generateHttpRequest(br);
+            if (httpRequest == null) {
+                return;
+            }
             String nextPath = HttpRequestUtils.DEFAULT_URL;
             Map<String, Cookie> cookies = new HashMap<>();
 
             if (httpRequest.getMethod().isPost()) {
                 if (httpRequest.getUri().equals("/user/create")) {
-                    Map<String, String> body = httpRequest.getBody();
-                    User user = new User(body.get("userId"), body.get("password"), body.get("name"), body.get("email"));
+                    User user = new User(httpRequest.getParameter("userId"), httpRequest.getParameter("password"), httpRequest.getParameter("name"), httpRequest.getParameter("email"));
                     DataBase.addUser(user);
                     log.info("New User: {}", user);
                 }
                 if (httpRequest.getUri().equals("/user/login")) {
-                    Map<String, String> body = httpRequest.getBody();
-                    if (isValidUser(dos, cookies, body)) return;
+                    if (isValidUser(dos, cookies, httpRequest.getParameter("userId"), httpRequest.getParameter("password")))
+                        return;
                     cookies.put("logined", new Cookie("logined", "true"));
                 }
                 redirect(dos, cookies, nextPath);
@@ -63,7 +66,7 @@ public class RequestHandler extends Thread {
                 return;
             }
             writeResponse(dos, httpRequest.getUri(), cookies);
-        } catch (IOException e) {
+        } catch (IOException | HttpRequestException e) {
             log.error(e.getMessage());
         }
     }
@@ -158,20 +161,14 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private boolean isValidUser(final DataOutputStream dos, final Map<String, Cookie> cookies, final Map<String, String> params) throws IOException {
-        Optional<String> optionalUserId = Optional.ofNullable(params.get("userId"));
-        Optional<String> optionalPassword = Optional.ofNullable(params.get("password"));
-        if (!optionalUserId.isPresent() || !optionalPassword.isPresent()) {
-            loginFailedResponse(dos, cookies);
-            return true;
-        }
-        Optional<User> optionalUser = Optional.ofNullable(DataBase.findUserById(params.get("userId")));
+    private boolean isValidUser(final DataOutputStream dos, final Map<String, Cookie> cookies, final String userId, final String password) throws IOException {
+        Optional<User> optionalUser = Optional.ofNullable(DataBase.findUserById(userId));
         if (!optionalUser.isPresent()) {
             loginFailedResponse(dos, cookies);
             return true;
         }
         User user = optionalUser.get();
-        if (!user.getPassword().equals(optionalPassword.get())) {
+        if (!user.getPassword().equals(password)) {
             loginFailedResponse(dos, cookies);
             return true;
         }

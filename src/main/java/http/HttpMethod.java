@@ -28,4 +28,12 @@ public enum HttpMethod {
     public boolean isPost() {
         return this == POST;
     }
+
+    public static boolean isGet(final String method) {
+        return method.equals("GET");
+    }
+
+    public static boolean isPost(final String method) {
+        return method.equals("POST");
+    }
 }

@@ -57,11 +57,7 @@ public class HttpRequest {
         return ImmutableMap.copyOf(cookies);
     }
 
-    public Map<String, String> getBody() {
-        return ImmutableMap.copyOf(body);
-    }
-
-    public String getValue(final String key) {
+    public String getParameter(final String key) {
         return body.get(key);
     }
 }
