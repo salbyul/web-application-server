@@ -2,10 +2,17 @@ package http.request;
 
 import com.google.common.collect.ImmutableMap;
 import cookie.Cookie;
+import exception.HttpRequestException;
 import http.HttpMethod;
+import util.HttpRequestUtils;
+import util.IOUtils;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static util.HttpRequestUtils.ERROR_PARSE_HTTP_REQUEST;
 
 public class HttpRequest {
 
@@ -16,17 +23,55 @@ public class HttpRequest {
     private final Map<String, Cookie> cookies;
     private final Map<String, String> body;
 
-    public HttpRequest(final HttpMethod method, final String uri, final String version, final Map<String, String> headers, final Map<String, Cookie> cookies, final Map<String, String> body) {
-        this.method = method;
-        this.uri = uri;
-        this.version = version;
-        this.headers = headers;
-        this.cookies = cookies;
-        this.body = body;
+    public HttpRequest(final BufferedReader br) {
+        try {
+            String line = br.readLine();
+            if (line == null) {
+                throw new HttpRequestException(ERROR_PARSE_HTTP_REQUEST);
+            }
+            String[] requestLineSplit = line.split(" ");
+            if (requestLineSplit.length != 3) {
+                throw new HttpRequestException(ERROR_PARSE_HTTP_REQUEST);
+            }
+            String method = requestLineSplit[0];
+            String uri = requestLineSplit[1];
+            String httpVersion = requestLineSplit[2];
+            if (HttpMethod.isGet(method)) {
+                uri = uri.split("[?]")[0];
+            }
+            Map<String, String> headers = generateHeader(br);
+            Map<String, Cookie> cookies = HttpRequestUtils.parseCookies(headers.get("Cookie"));
+            headers.remove("Cookie");
+
+            this.method = HttpMethod.toMethod(method);
+            this.uri = uri;
+            this.version = httpVersion;
+            this.headers = headers;
+            this.cookies = cookies;
+            Map<String, String> body = new HashMap<>();
+            if (HttpMethod.isPost(method) && headers.containsKey("Content-Length") && Integer.parseInt(headers.get("Content-Length")) > 0) {
+                String requestBody = IOUtils.readData(br, Integer.parseInt(headers.get("Content-Length")));
+                body = HttpRequestUtils.parseQueryString(requestBody);
+            } else if (HttpMethod.isGet(method) && requestLineSplit[1].contains("?")) {
+                String parameters = requestLineSplit[1].split("[?]")[1];
+                body = HttpRequestUtils.parseQueryString(parameters);
+            }
+            this.body = body;
+        } catch (IOException e) {
+            throw new HttpRequestException(ERROR_PARSE_HTTP_REQUEST);
+        }
     }
 
-    public HttpRequest(final HttpMethod method, final String uri, final String version, final Map<String, String> headers, final Map<String, Cookie> cookies) {
-        this(method, uri, version, headers, cookies, new HashMap<>());
+    private static Map<String, String> generateHeader(final BufferedReader br) throws IOException {
+        Map<String, String> header = new HashMap<>();
+        String line;
+        while (!"".equals(line = br.readLine())) {
+            String[] split = line.split(": ");
+            if (split.length == 2) {
+                header.put(split[0], split[1]);
+            }
+        }
+        return header;
     }
 
     public HttpMethod getMethod() {

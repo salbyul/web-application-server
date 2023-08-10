@@ -21,7 +21,7 @@ public class HttpRequestTest {
     public void parseHttpRequestGetMethod() {
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(BASE_DIRECTORY + "Http_GET.txt")));
-            HttpRequest httpRequest = HttpRequestUtils.generateHttpRequest(br);
+            HttpRequest httpRequest = new HttpRequest(br);
             assertThat(httpRequest.getMethod(), is(HttpMethod.GET));
             assertThat(httpRequest.getUri(), is("/user/list.html"));
             assertThat(httpRequest.getHeader("Accept"), is("*/*"));
@@ -38,7 +38,7 @@ public class HttpRequestTest {
     public void parseHttpRequestPostMethod() {
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(BASE_DIRECTORY + "Http_POST.txt")));
-            HttpRequest httpRequest = HttpRequestUtils.generateHttpRequest(br);
+            HttpRequest httpRequest = new HttpRequest(br);
             assertThat(httpRequest.getMethod(), is(HttpMethod.POST));
             assertThat(httpRequest.getUri(), is("/user/create"));
             assertThat(httpRequest.getHeader("Accept"), is("*/*"));

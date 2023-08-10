@@ -3,18 +3,18 @@ package webserver;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 
 import cookie.Cookie;
 import db.DataBase;
 import exception.HttpRequestException;
+import http.ContentType;
 import http.request.HttpRequest;
+import http.response.HttpResponse;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
-import util.HttpStatusCode;
 
 import static util.HttpStatusCode.*;
 
@@ -22,6 +22,8 @@ public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
 
     private final Socket connection;
+    private HttpResponse response;
+    private HttpRequest request;
 
     public RequestHandler(Socket connectionSocket) {
         this.connection = connectionSocket;
@@ -33,150 +35,66 @@ public class RequestHandler extends Thread {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             DataOutputStream dos = new DataOutputStream(out);
-            HttpRequest httpRequest = HttpRequestUtils.generateHttpRequest(br);
-            if (httpRequest == null) {
-                return;
-            }
-            String nextPath = HttpRequestUtils.DEFAULT_URL;
-            Map<String, Cookie> cookies = new HashMap<>();
+            init(dos, br);
 
-            if (httpRequest.getMethod().isPost()) {
-                if (httpRequest.getUri().equals("/user/create")) {
-                    User user = new User(httpRequest.getParameter("userId"), httpRequest.getParameter("password"), httpRequest.getParameter("name"), httpRequest.getParameter("email"));
+            String nextPath = HttpRequestUtils.DEFAULT_URL;
+            if (request.getMethod().isPost()) {
+                if (request.getUri().equals("/user/create")) {
+                    User user = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
                     DataBase.addUser(user);
                     log.info("New User: {}", user);
                 }
-                if (httpRequest.getUri().equals("/user/login")) {
-                    if (isValidUser(dos, cookies, httpRequest.getParameter("userId"), httpRequest.getParameter("password")))
+                if (request.getUri().equals("/user/login")) {
+                    if (isValidUser(request.getParameter("userId"), request.getParameter("password"))) {
+                        response.setCode(BAD_REQUEST);
+                        response.addCookie(new Cookie("logined", "false"));
+                        response.forward(HttpRequestUtils.LOGIN_FAILED_URL);
                         return;
-                    cookies.put("logined", new Cookie("logined", "true"));
+                    }
+                    response.addCookie(new Cookie("logined", "true"));
                 }
-                redirect(dos, cookies, nextPath);
+                response.redirect(nextPath);
                 return;
             }
-            if (httpRequest.getUri().equals("/user/list.html")) {
-                Cookie cookie = httpRequest.getCookie("logined");
+            if (request.getUri().equals("/user/list.html")) {
+                Cookie cookie = request.getCookie("logined");
                 if (cookie == null || cookie.getValue().equals("false")) {
                     nextPath = "/user/login.html";
-                    writeResponse(dos, nextPath, cookies, FORBIDDEN);
+                    response.setCode(FORBIDDEN);
+                    response.forward(nextPath);
                     return;
                 }
                 nextPath = "/user/list.html";
-                writeResponse(dos, nextPath, cookies);
+                response.forward(nextPath);
                 return;
             }
-            writeResponse(dos, httpRequest.getUri(), cookies);
+            response.forward(request.getUri());
         } catch (IOException | HttpRequestException e) {
             log.error(e.getMessage());
         }
     }
 
-    private void writeResponse(final DataOutputStream dos, final String url, final Map<String, Cookie> cookies, final HttpStatusCode code) throws IOException {
-        String nextPath = url;
-        if (url.equals("/")) {
-            nextPath = "/index.html";
-        }
-        byte[] body;
-        String contentType = extractContentType(url);
-        if (url.equals("/user/list.html")) {
-            body = getBody(url);
-        } else {
-            body = Files.readAllBytes(new File("./webapp" + nextPath).toPath());
-        }
-        dos.writeBytes(HttpRequestUtils.getFirstLineHttpProtocol(code) + " \r\n");
-        dos.writeBytes("Content-Type: " + contentType + "\r\n");
-        dos.writeBytes("Content-Length: " + body.length + "\r\n");
-        setCookies(cookies, dos);
-        dos.writeBytes("\r\n");
-
-        responseBody(dos, body);
+    private void init(final OutputStream out, final BufferedReader br) {
+        request = new HttpRequest(br);
+        response = new HttpResponse(out);
+        response.setContentType(extractContentType(request.getUri()));
     }
 
-    private String extractContentType(final String url) {
+    private ContentType extractContentType(final String url) {
         if (url.length() >= 5 && url.contains(".css")) {
-            return "text/css;charset=utf-8";
+            return ContentType.CSS;
         } else if (url.length() >= 4 && url.contains(".js")) {
-            return "text/javascript;charset=utf-8";
+            return ContentType.JS;
         }
-        return "text/html;charset=utf-8";
+        return ContentType.HTML;
     }
 
-    private byte[] getBody(final String url) throws IOException {
-        byte[] body;
-        List<String> strings = Files.readAllLines(new File("./webapp" + url).toPath());
-        boolean isDynamicSection = false;
-        StringBuilder stringBuilder = new StringBuilder();
-        for (String string : strings) {
-            if (isDynamicSection) {
-                List<User> allUser = new ArrayList<>(DataBase.findAll());
-                for (int i = 1; i <= allUser.size(); i++) {
-                    User user = allUser.get(i - 1);
-                    stringBuilder.append("<tr>\n<th scope=\"row\">")
-                            .append(i)
-                            .append("</tr> <td>")
-                            .append(user.getUserId())
-                            .append("</td> <td>")
-                            .append(user.getName())
-                            .append("</td> <td>")
-                            .append(user.getEmail())
-                            .append("</td> <td> <a href=\"#\" class=\"btn btn-success\" roll=\"button\">수정</a></td>\n</tr>\n");
-                }
-                isDynamicSection = false;
-            }
-            if (string.contains("<tbody>")) {
-                isDynamicSection = true;
-                continue;
-            }
-            stringBuilder.append(string).append("\n");
-        }
-        body = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
-        return body;
-    }
-
-    private void responseBody(final DataOutputStream dos, final byte[] body) throws IOException {
-        dos.write(body, 0, body.length);
-        dos.flush();
-    }
-
-    private void writeResponse(final DataOutputStream dos, final String url, final Map<String, Cookie> cookies) throws IOException {
-        writeResponse(dos, url, cookies, OK);
-    }
-
-    private void redirect(final DataOutputStream dos, final Map<String, Cookie> cookies, final String path) throws IOException {
-        dos.writeBytes(HttpRequestUtils.getFirstLineHttpProtocol(SEE_OTHER) + " \r\n");
-        dos.writeBytes("Location: " + path + "\r\n");
-        dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
-        dos.writeBytes("Content-Length: 0 \r\n");
-        setCookies(cookies, dos);
-        dos.writeBytes("\r\n");
-    }
-
-    private void setCookies(final Map<String, Cookie> cookies, final DataOutputStream dos) throws IOException {
-        if (cookies == null) {
-            return;
-        }
-        for (String key : cookies.keySet()) {
-            Cookie cookie = cookies.get(key);
-            dos.writeBytes("Set-Cookie: " + cookie.toString() + "\r\n");
-        }
-    }
-
-    private boolean isValidUser(final DataOutputStream dos, final Map<String, Cookie> cookies, final String userId, final String password) throws IOException {
+    private boolean isValidUser(final String userId, final String password) throws IOException {
         Optional<User> optionalUser = Optional.ofNullable(DataBase.findUserById(userId));
         if (!optionalUser.isPresent()) {
-            loginFailedResponse(dos, cookies);
             return true;
         }
         User user = optionalUser.get();
-        if (!user.getPassword().equals(password)) {
-            loginFailedResponse(dos, cookies);
-            return true;
-        }
-        return false;
-    }
-
-    private void loginFailedResponse(final DataOutputStream dos, final Map<String, Cookie> cookies) throws IOException {
-        cookies.put("logined", new Cookie("logined", "false"));
-        writeResponse(dos, HttpRequestUtils.LOGIN_FAILED_URL, cookies, BAD_REQUEST);
+        return !user.getPassword().equals(password);
     }
 }
