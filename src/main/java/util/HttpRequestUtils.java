@@ -1,19 +1,23 @@
 package util;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import cookie.Cookie;
+import exception.HttpRequestException;
+import http.HttpMethod;
+import http.request.HttpRequest;
 
 public class HttpRequestUtils {
 
     public static final String DEFAULT_URL = "/index.html";
     public static final String LOGIN_FAILED_URL = "/user/login_failed.html";
     public static final Map<HttpStatusCode, String> firstLineHttpProtocolMap = new HashMap<>();
+    public static final String ERROR_PARSE_HTTP_REQUEST = "HttpRequest Parse Error";
 
     static {
         firstLineHttpProtocolMap.put(HttpStatusCode.OK, "HTTP/1.1 200 OK");
@@ -22,14 +26,45 @@ public class HttpRequestUtils {
         firstLineHttpProtocolMap.put(HttpStatusCode.SEE_OTHER, "HTTP/1.1 303 See Other");
     }
 
-    public static String getUrl(final String line) {
-        String[] split = line.split(" ");
-        String url = split[1];
-        if (url.equals("/")) {
-            url = DEFAULT_URL;
+    public static HttpRequest generateHttpRequest(final BufferedReader br) {
+        try {
+            String line = br.readLine();
+            if (line == null) {
+                throw new AssertionError();
+            }
+            String[] requestLineSplit = line.split(" ");
+            if (requestLineSplit.length != 3) {
+                throw new AssertionError();
+            }
+            String url = requestLineSplit[1];
+            String method = requestLineSplit[0];
+            String httpVersion = requestLineSplit[2];
+            Map<String, String> headers = generateHeader(br);
+            Map<String, Cookie> cookies = HttpRequestUtils.parseCookies(headers.get("Cookie"));
+            headers.remove("Cookie");
+            if (headers.containsKey("Content-Length") && Integer.parseInt(headers.get("Content-Length")) > 0) {
+                String requestBody = IOUtils.readData(br, Integer.parseInt(headers.get("Content-Length")));
+                Map<String, String> body = parseQueryString(requestBody);
+                return new HttpRequest(HttpMethod.toMethod(method), url, httpVersion, headers, cookies, body);
+            }
+            return new HttpRequest(HttpMethod.toMethod(method), url, httpVersion, headers, cookies);
+        } catch (IOException e) {
+            throw new HttpRequestException(ERROR_PARSE_HTTP_REQUEST);
         }
-        return url;
     }
+
+    private static Map<String, String> generateHeader(final BufferedReader br) throws IOException {
+        Map<String, String> header = new HashMap<>();
+        String line;
+        while (!"".equals(line = br.readLine())) {
+            String[] split = line.split(": ");
+            if (split.length == 2) {
+                header.put(split[0], split[1]);
+            }
+        }
+        return header;
+    }
+
     public static String getFirstLineHttpProtocol(final HttpStatusCode code) {
         return firstLineHttpProtocolMap.get(code);
     }

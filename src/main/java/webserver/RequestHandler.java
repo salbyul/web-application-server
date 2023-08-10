@@ -8,13 +8,12 @@ import java.util.*;
 
 import cookie.Cookie;
 import db.DataBase;
+import http.request.HttpRequest;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.HttpMethodUtils;
 import util.HttpRequestUtils;
 import util.HttpStatusCode;
-import util.IOUtils;
 
 import static util.HttpStatusCode.*;
 
@@ -33,80 +32,53 @@ public class RequestHandler extends Thread {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             DataOutputStream dos = new DataOutputStream(out);
-            String line = br.readLine();
-            if (line == null) {
-                return;
-            }
-            String url = HttpRequestUtils.getUrl(line);
-            HttpMethodUtils method = HttpMethodUtils.getMethod(line.substring(0, line.indexOf(" ")));
-            Map<String, String> header = generateHeader(br);
-            Map<String, Cookie> cookies = HttpRequestUtils.parseCookies(header.get("Cookie"));
-            log.debug("URL: [{}]", url);
+            HttpRequest httpRequest = HttpRequestUtils.generateHttpRequest(br);
+            String nextPath = HttpRequestUtils.DEFAULT_URL;
+            Map<String, Cookie> cookies = new HashMap<>();
 
-            if (method.isPost()) {
-                if (url.equals("/user/create")) {
-                    url = HttpRequestUtils.DEFAULT_URL;
-                    String contentLength = header.get("Content-Length");
-                    String requestBody = IOUtils.readData(br, Integer.parseInt(contentLength));
-                    Map<String, String> params = HttpRequestUtils.parseQueryString(requestBody);
-                    User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+            if (httpRequest.getMethod().isPost()) {
+                if (httpRequest.getUri().equals("/user/create")) {
+                    Map<String, String> body = httpRequest.getBody();
+                    User user = new User(body.get("userId"), body.get("password"), body.get("name"), body.get("email"));
                     DataBase.addUser(user);
                     log.info("New User: {}", user);
                 }
-                if (url.equals("/user/login")) {
-                    url = HttpRequestUtils.DEFAULT_URL;
-                    String contentLength = header.get("Content-Length");
-                    String requestBody = IOUtils.readData(br, Integer.parseInt(contentLength));
-                    Map<String, String> params = HttpRequestUtils.parseQueryString(requestBody);
-                    if (isValidUser(dos, cookies, params)) return;
+                if (httpRequest.getUri().equals("/user/login")) {
+                    Map<String, String> body = httpRequest.getBody();
+                    if (isValidUser(dos, cookies, body)) return;
                     cookies.put("logined", new Cookie("logined", "true"));
                 }
-                redirect(dos, cookies, url);
+                redirect(dos, cookies, nextPath);
                 return;
             }
-            if (url.equals("/user/list.html")) {
-                Cookie cookie = cookies.get("logined");
+            if (httpRequest.getUri().equals("/user/list.html")) {
+                Cookie cookie = httpRequest.getCookie("logined");
                 if (cookie == null || cookie.getValue().equals("false")) {
-                    url = "/user/login.html";
-                    writeResponse(dos, url, cookies, FORBIDDEN);
+                    nextPath = "/user/login.html";
+                    writeResponse(dos, nextPath, cookies, FORBIDDEN);
                     return;
                 }
-                url = "/user/list.html";
-                writeResponse(dos, url, cookies);
+                nextPath = "/user/list.html";
+                writeResponse(dos, nextPath, cookies);
                 return;
             }
-            writeResponse(dos, url, cookies);
+            writeResponse(dos, httpRequest.getUri(), cookies);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
 
-    private void loginFailedResponse(final DataOutputStream dos, final Map<String, Cookie> cookies) throws IOException {
-        String url;
-        url = HttpRequestUtils.LOGIN_FAILED_URL;
-        cookies.put("logined", new Cookie("logined", "false"));
-        writeResponse(dos, url, cookies);
-    }
-
-    private Map<String, String> generateHeader(final BufferedReader br) throws IOException {
-        Map<String, String> header = new HashMap<>();
-        String line;
-        while (!"".equals(line = br.readLine())) {
-            String[] split = line.split(": ");
-            if (split.length == 2) {
-                header.put(split[0], split[1]);
-            }
-        }
-        return header;
-    }
-
     private void writeResponse(final DataOutputStream dos, final String url, final Map<String, Cookie> cookies, final HttpStatusCode code) throws IOException {
+        String nextPath = url;
+        if (url.equals("/")) {
+            nextPath = "/index.html";
+        }
         byte[] body;
         String contentType = extractContentType(url);
         if (url.equals("/user/list.html")) {
             body = getBody(url);
         } else {
-            body = Files.readAllBytes(new File("./webapp" + url).toPath());
+            body = Files.readAllBytes(new File("./webapp" + nextPath).toPath());
         }
         dos.writeBytes(HttpRequestUtils.getFirstLineHttpProtocol(code) + " \r\n");
         dos.writeBytes("Content-Type: " + contentType + "\r\n");
@@ -154,7 +126,6 @@ public class RequestHandler extends Thread {
             }
             stringBuilder.append(string).append("\n");
         }
-        log.debug("{}", stringBuilder);
         body = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
         return body;
     }
@@ -205,5 +176,10 @@ public class RequestHandler extends Thread {
             return true;
         }
         return false;
+    }
+
+    private void loginFailedResponse(final DataOutputStream dos, final Map<String, Cookie> cookies) throws IOException {
+        cookies.put("logined", new Cookie("logined", "false"));
+        writeResponse(dos, HttpRequestUtils.LOGIN_FAILED_URL, cookies, BAD_REQUEST);
     }
 }
