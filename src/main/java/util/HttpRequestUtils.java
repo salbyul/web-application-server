@@ -12,6 +12,15 @@ public class HttpRequestUtils {
     public static final String DEFAULT_URL = "/index.html";
     public static final String LOGIN_FAILED_URL = "/user/login_failed.html";
     public static final String ERROR_PARSE_HTTP_REQUEST = "HttpRequest Parse Error";
+//    Header Key
+    public static final String CONTENT_TYPE = "Content-Type";
+    public static final String CONTENT_LENGTH = "Content-Length";
+    public static final String LOCATION = "Location";
+    public static final String SET_COOKIE = "Set-Cookie";
+//    Header Value
+    public static final String TEXT_CSS = "text/css";
+    public static final String TEXT_JAVASCRIPT = "text/javascript";
+    public static final String TEXT_HTML = "text/html";
     public static final String CONTENT_TYPE_CSS = "css";
     public static final String CONTENT_TYPE_JS = "js";
 

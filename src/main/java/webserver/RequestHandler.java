@@ -8,7 +8,6 @@ import java.util.*;
 import cookie.Cookie;
 import db.DataBase;
 import exception.HttpRequestException;
-import http.ContentType;
 import http.request.HttpRequest;
 import http.response.HttpResponse;
 import model.User;
@@ -16,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
 
+import static util.HttpRequestUtils.*;
 import static util.HttpStatusCode.*;
 
 public class RequestHandler extends Thread {
@@ -77,18 +77,18 @@ public class RequestHandler extends Thread {
     private void init(final OutputStream out, final BufferedReader br) {
         request = new HttpRequest(br);
         response = new HttpResponse(out);
-        response.setContentType(extractContentType(request.getUri()));
+        response.addHeader(CONTENT_TYPE, extractContentType(request.getUri()));
     }
 
-    private ContentType extractContentType(final String url) {
-        String extra = url.substring(url.lastIndexOf('.') + 1);
+    private String extractContentType(final String url) {
+        String extension = url.substring(url.lastIndexOf('.') + 1);
 
-        if (url.length() >= 5 && extra.equals(HttpRequestUtils.CONTENT_TYPE_CSS)) {
-            return ContentType.CSS;
-        } else if (url.length() >= 4 && extra.equals(HttpRequestUtils.CONTENT_TYPE_JS)) {
-            return ContentType.JS;
+        if (url.length() >= 5 && extension.equals(CONTENT_TYPE_CSS)) {
+            return TEXT_CSS;
+        } else if (url.length() >= 4 && extension.equals(CONTENT_TYPE_JS)) {
+            return TEXT_JAVASCRIPT;
         }
-        return ContentType.HTML;
+        return TEXT_HTML;
     }
 
     private boolean isValidUser(final String userId, final String password) throws IOException {
