@@ -1,17 +1,13 @@
 package http.response;
 
 import cookie.Cookie;
-import db.DataBase;
-import model.User;
 import util.HttpStatusCode;
 import util.IOUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static util.HttpRequestUtils.*;
@@ -57,76 +53,61 @@ public class HttpResponse {
         this.cookies.put(cookie.getKey(), cookie);
     }
 
-    public void forward(final String path) throws IOException {
-        BufferedReader br;
-        byte[] body;
-        String nextPath = path.equals("/") ? BASE_PATH + DEFAULT_URL : path;
+    public void forward(final String path) {
+        try {
+            BufferedReader br;
+            String nextPath = path.equals("/") ? BASE_PATH + DEFAULT_URL : path;
 
-        if (!nextPath.startsWith(BASE_PATH)) {
-            nextPath = BASE_PATH + path;
-        }
-        if (nextPath.equals(BASE_PATH +"/user/list.html")) {
-            body = getBody(nextPath);
-        } else {
-            body = Files.readAllBytes(new File(nextPath).toPath());
-        }
-        br = new BufferedReader(new InputStreamReader(new FileInputStream(nextPath)));
-        this.headers.put(CONTENT_LENGTH, String.valueOf(body.length));
-        this.body = IOUtils.readData(br, body.length);
-        out.write(getHeader().getBytes(StandardCharsets.UTF_8));
-        out.write(body);
-    }
-
-    public void redirect(final String path) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(firstLineHttpProtocolMap.get(HttpStatusCode.SEE_OTHER)).append(NEXT_LINE)
-                .append(LOCATION).append(DELIMITER)
-                .append(path).append(NEXT_LINE);
-        if (cookies.size() > 0) {
-            sb.append(SET_COOKIE).append(DELIMITER);
-            for (String key : cookies.keySet()) {
-                sb.append(cookies.get(key)).append(NEXT_LINE);
+            if (!nextPath.startsWith(BASE_PATH)) {
+                nextPath = BASE_PATH + path;
             }
+            if (this.body == null) {
+                byte[] body;
+                body = Files.readAllBytes(new File(nextPath).toPath());
+                br = new BufferedReader(new InputStreamReader(new FileInputStream(nextPath)));
+                this.headers.put(CONTENT_LENGTH, String.valueOf(body.length));
+                this.body = IOUtils.readData(br, body.length);
+            }
+            out.write(getHeader().getBytes(StandardCharsets.UTF_8));
+            out.write(this.body.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private byte[] getBody(final String url) throws IOException {
-        byte[] body;
-        List<String> strings = Files.readAllLines(new File(url).toPath());
-        boolean isDynamicSection = false;
-        StringBuilder sb = new StringBuilder();
-        for (String string : strings) {
-            if (isDynamicSection) {
-                List<User> allUser = new ArrayList<>(DataBase.findAll());
-                for (int i = 1; i <= allUser.size(); i++) {
-                    User user = allUser.get(i - 1);
-                    sb.append("<tr>\n<th scope=\"row\">")
-                            .append(i)
-                            .append("</tr> <td>")
-                            .append(user.getUserId())
-                            .append("</td> <td>")
-                            .append(user.getName())
-                            .append("</td> <td>")
-                            .append(user.getEmail())
-                            .append("</td> <td> <a href=\"#\" class=\"btn btn-success\" roll=\"button\">수정</a></td>\n</tr>\n");
+    public void redirect(final String path) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append(firstLineHttpProtocolMap.get(HttpStatusCode.SEE_OTHER)).append(NEXT_LINE)
+                    .append(LOCATION).append(DELIMITER)
+                    .append(path).append(NEXT_LINE);
+            if (cookies.size() > 0) {
+                sb.append(SET_COOKIE).append(DELIMITER);
+                for (String key : cookies.keySet()) {
+                    sb.append(cookies.get(key)).append(NEXT_LINE);
                 }
-                isDynamicSection = false;
             }
-            if (string.contains("<tbody>")) {
-                isDynamicSection = true;
-                continue;
-            }
-            sb.append(string).append(NEXT_LINE);
+            out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        body = sb.toString().getBytes(StandardCharsets.UTF_8);
-        return body;
+    }
+
+    public void setBody(final String body) {
+        this.body = body;
+        this.headers.put(CONTENT_LENGTH, String.valueOf(this.body.getBytes(StandardCharsets.UTF_8).length));
     }
 
     private String getHeader() {
         StringBuilder sb = new StringBuilder();
         sb.append(firstLineHttpProtocolMap.get(this.code)).append(NEXT_LINE);
         for (String key : headers.keySet()) {
+            if (key.equals(CONTENT_TYPE)) {
+                sb.append(key).append(DELIMITER).append(headers.get(key)).append(";charset=utf-8\n");
+                continue;
+            }
             sb.append(key).append(DELIMITER).append(headers.get(key)).append(NEXT_LINE);
         }
         if (cookies.size() > 0) {
