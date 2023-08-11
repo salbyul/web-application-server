@@ -81,9 +81,11 @@ public class RequestHandler extends Thread {
     }
 
     private ContentType extractContentType(final String url) {
-        if (url.length() >= 5 && url.contains(".css")) {
+        String extra = url.substring(url.lastIndexOf('.') + 1);
+
+        if (url.length() >= 5 && extra.equals(HttpRequestUtils.CONTENT_TYPE_CSS)) {
             return ContentType.CSS;
-        } else if (url.length() >= 4 && url.contains(".js")) {
+        } else if (url.length() >= 4 && extra.equals(HttpRequestUtils.CONTENT_TYPE_JS)) {
             return ContentType.JS;
         }
         return ContentType.HTML;

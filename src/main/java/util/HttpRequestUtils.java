@@ -12,6 +12,8 @@ public class HttpRequestUtils {
     public static final String DEFAULT_URL = "/index.html";
     public static final String LOGIN_FAILED_URL = "/user/login_failed.html";
     public static final String ERROR_PARSE_HTTP_REQUEST = "HttpRequest Parse Error";
+    public static final String CONTENT_TYPE_CSS = "css";
+    public static final String CONTENT_TYPE_JS = "js";
 
     public static String getParameters(final String url) {
         return url.split("[?]")[1];
