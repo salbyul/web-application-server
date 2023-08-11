@@ -64,13 +64,14 @@ public class HttpResponse {
     }
 
     public void forward(final String path) throws IOException {
-        String nextPath = path.equals("/") ? "./webapp/index.html" : path;
-        if (!path.startsWith("./webapp")) {
-            nextPath = "./webapp" + path;
-        }
         BufferedReader br;
         byte[] body;
-        if (path.equals("/user/list.html")) {
+        String nextPath = path.equals("/") ? "./webapp/index.html" : path;
+
+        if (!nextPath.startsWith("./webapp")) {
+            nextPath = "./webapp" + path;
+        }
+        if (nextPath.equals("./webapp/user/list.html")) {
             body = getBody(nextPath);
         } else {
             body = Files.readAllBytes(new File(nextPath).toPath());
