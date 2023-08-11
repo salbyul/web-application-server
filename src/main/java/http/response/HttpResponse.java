@@ -95,13 +95,13 @@ public class HttpResponse {
         byte[] body;
         List<String> strings = Files.readAllLines(new File(url).toPath());
         boolean isDynamicSection = false;
-        StringBuilder stringBuilder = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         for (String string : strings) {
             if (isDynamicSection) {
                 List<User> allUser = new ArrayList<>(DataBase.findAll());
                 for (int i = 1; i <= allUser.size(); i++) {
                     User user = allUser.get(i - 1);
-                    stringBuilder.append("<tr>\n<th scope=\"row\">")
+                    sb.append("<tr>\n<th scope=\"row\">")
                             .append(i)
                             .append("</tr> <td>")
                             .append(user.getUserId())
@@ -117,9 +117,9 @@ public class HttpResponse {
                 isDynamicSection = true;
                 continue;
             }
-            stringBuilder.append(string).append(NEXT_LINE);
+            sb.append(string).append(NEXT_LINE);
         }
-        body = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
+        body = sb.toString().getBytes(StandardCharsets.UTF_8);
         return body;
     }
 
