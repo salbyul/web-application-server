@@ -28,7 +28,7 @@ public class Servlet {
                 uri = "/index.html";
             }
             if (controller.containsKey(uri)) {
-                controller.get(uri).process(httpRequest, httpResponse);
+                controller.get(uri).service(httpRequest, httpResponse);
                 return;
             }
             File file = new File("./webapp" + uri);

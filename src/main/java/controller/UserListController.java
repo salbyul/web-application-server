@@ -16,7 +16,7 @@ import java.util.List;
 
 import static util.HttpStatusCode.FORBIDDEN;
 
-public class UserListController implements Controller {
+public class UserListController extends AbstractController {
 
     private static final Logger log = LoggerFactory.getLogger(UserListController.class);
     private static final UserListController controller = new UserListController();
@@ -28,15 +28,20 @@ public class UserListController implements Controller {
     }
 
     @Override
-    public void process(final HttpRequest httpRequest, final HttpResponse httpResponse) throws IOException {
-        Cookie cookie = httpRequest.getCookie("logined");
+    public void doGet(final HttpRequest request, final HttpResponse response) throws IOException {
+        Cookie cookie = request.getCookie("logined");
         if (cookie == null || cookie.getValue().equals("false")) {
-            httpResponse.setCode(FORBIDDEN);
-            httpResponse.forward("/user/login.html");
+            response.setCode(FORBIDDEN);
+            response.forward("/user/login.html");
             return;
         }
-        httpResponse.setBody(getBody());
-        httpResponse.forward("/user/list.html");
+        response.setBody(getBody());
+        response.forward("/user/list.html");
+    }
+
+    @Override
+    public void doPost(final HttpRequest request, final HttpResponse response) {
+
     }
 
     private String getBody() throws IOException {

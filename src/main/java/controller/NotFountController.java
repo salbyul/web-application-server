@@ -5,7 +5,7 @@ import http.response.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NotFountController implements Controller {
+public class NotFountController extends AbstractController {
 
     private static final Logger log = LoggerFactory.getLogger(NotFountController.class);
     private static final NotFountController controller = new NotFountController();
@@ -17,7 +17,17 @@ public class NotFountController implements Controller {
     }
 
     @Override
-    public void process(final HttpRequest httpRequest, final HttpResponse httpResponse) {
-        httpResponse.forward("/404.html");
+    public void service(final HttpRequest request, final HttpResponse response) {
+        response.forward("/404.html");
+    }
+
+    @Override
+    public void doGet(final HttpRequest request, final HttpResponse response) {
+
+    }
+
+    @Override
+    public void doPost(final HttpRequest request, final HttpResponse response) {
+
     }
 }

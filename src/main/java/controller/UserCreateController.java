@@ -7,7 +7,7 @@ import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UserCreateController implements Controller {
+public class UserCreateController extends AbstractController {
 
     private static final Logger log = LoggerFactory.getLogger(UserCreateController.class);
     private static final UserCreateController controller = new UserCreateController();
@@ -19,10 +19,15 @@ public class UserCreateController implements Controller {
     }
 
     @Override
-    public void process(final HttpRequest httpRequest, final HttpResponse httpResponse) {
-        User user = new User(httpRequest.getParameter("userId"), httpRequest.getParameter("password"), httpRequest.getParameter("name"), httpRequest.getParameter("email"));
+    public void doGet(final HttpRequest request, final HttpResponse response) {
+
+    }
+
+    @Override
+    public void doPost(final HttpRequest request, final HttpResponse response) {
+        User user = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
         DataBase.addUser(user);
         log.info("New User: {}", user);
-        httpResponse.redirect("/index.html");
+        response.redirect("/index.html");
     }
 }

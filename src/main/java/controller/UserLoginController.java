@@ -9,32 +9,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
 
+import java.io.IOException;
+
 import static util.HttpStatusCode.BAD_REQUEST;
 
-public class UserLoginController implements Controller {
+public class UserLoginController extends AbstractController {
 
     private static final Logger log = LoggerFactory.getLogger(UserLoginController.class);
     private static final UserLoginController controller = new UserLoginController();
 
-    private UserLoginController() {}
+    private UserLoginController() {
+    }
 
     protected static UserLoginController getInstance() {
         return controller;
     }
 
     @Override
-    public void process(final HttpRequest httpRequest, final HttpResponse httpResponse) {
+    public void doGet(final HttpRequest request, final HttpResponse response) throws IOException {
 
-        if (isValidUser(httpRequest.getParameter("userId"), httpRequest.getParameter("password"))) {
-            httpResponse.addCookie(new Cookie("logined", "true"));
-            log.debug("{} is login!", httpRequest.getParameter("userId"));
-            httpResponse.redirect("/index.html");
+    }
+
+    @Override
+    public void doPost(final HttpRequest request, final HttpResponse response) throws IOException {
+        if (isValidUser(request.getParameter("userId"), request.getParameter("password"))) {
+            response.addCookie(new Cookie("logined", "true"));
+            log.debug("{} is login!", request.getParameter("userId"));
+            response.redirect("/index.html");
             return;
         }
-        httpResponse.setCode(BAD_REQUEST);
-        httpResponse.addCookie(new Cookie("logined", "false"));
-        httpResponse.forward(HttpRequestUtils.LOGIN_FAILED_URL);
-        httpResponse.redirect("/user/login_failed.html");
+        response.setCode(BAD_REQUEST);
+        response.addCookie(new Cookie("logined", "false"));
+        response.forward(HttpRequestUtils.LOGIN_FAILED_URL);
+        response.redirect("/user/login_failed.html");
     }
 
     private boolean isValidUser(final String userId, final String password) {

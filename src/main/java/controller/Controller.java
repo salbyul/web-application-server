@@ -7,5 +7,5 @@ import java.io.IOException;
 
 public interface Controller {
 
-    void process(final HttpRequest httpRequest, final HttpResponse httpResponse) throws IOException;
+    void service(final HttpRequest request, final HttpResponse response) throws IOException;
 }
