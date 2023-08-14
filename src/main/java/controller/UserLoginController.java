@@ -7,6 +7,7 @@ import http.response.HttpResponse;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import session.HttpSession;
 import util.HttpRequestUtils;
 
 import java.io.IOException;
@@ -33,13 +34,14 @@ public class UserLoginController extends AbstractController {
     @Override
     public void doPost(final HttpRequest request, final HttpResponse response) throws IOException {
         if (isValidUser(request.getParameter("userId"), request.getParameter("password"))) {
-            response.addCookie(new Cookie("logined", "true"));
+            HttpSession session = request.getSession();
+            User user = DataBase.findUserById(request.getParameter("userId"));
+            session.setAttribute("user", user);
             log.debug("{} is login!", request.getParameter("userId"));
             response.redirect("/index.html");
             return;
         }
         response.setCode(BAD_REQUEST);
-        response.addCookie(new Cookie("logined", "false"));
         response.forward(HttpRequestUtils.LOGIN_FAILED_URL);
         response.redirect("/user/login_failed.html");
     }

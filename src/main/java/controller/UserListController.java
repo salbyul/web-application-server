@@ -7,6 +7,7 @@ import http.response.HttpResponse;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import session.HttpSession;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,8 +30,9 @@ public class UserListController extends AbstractController {
 
     @Override
     public void doGet(final HttpRequest request, final HttpResponse response) throws IOException {
-        Cookie cookie = request.getCookie("logined");
-        if (cookie == null || cookie.getValue().equals("false")) {
+        HttpSession session = request.getSession();
+        Object user = session.getAttribute("user");
+        if (user == null) {
             response.setCode(FORBIDDEN);
             response.forward("/user/login.html");
             return;

@@ -3,13 +3,16 @@ package webserver;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import controller.Servlet;
+import cookie.Cookie;
 import exception.HttpRequestException;
 import http.request.HttpRequest;
 import http.response.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import session.HttpSession;
 
 import static util.HttpRequestUtils.*;
 
@@ -42,6 +45,12 @@ public class RequestHandler extends Thread {
         request = new HttpRequest(br);
         response = new HttpResponse(out);
         response.addHeader(CONTENT_TYPE, extractContentType(request.getUri()));
+        Cookie sessionCookie = request.getCookie(HttpSession.SESSION_COOKIE_KEY);
+        if (sessionCookie == null) {
+            String uuid = UUID.randomUUID().toString();
+            Cookie cookie = new Cookie(HttpSession.SESSION_COOKIE_KEY, uuid);
+            response.addCookie(cookie);
+        }
     }
 
     private String extractContentType(final String url) {

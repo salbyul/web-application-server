@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import cookie.Cookie;
 import exception.HttpRequestException;
 import http.HttpMethod;
+import session.HttpSession;
 import util.HttpRequestUtils;
 import util.IOUtils;
 
@@ -22,6 +23,7 @@ public class HttpRequest {
     private final Map<String, String> headers;
     private final Map<String, Cookie> cookies;
     private final Map<String, String> body;
+    private HttpSession session;
 
     public HttpRequest(final BufferedReader br) {
         try {
@@ -104,6 +106,14 @@ public class HttpRequest {
 
     public String getParameter(final String key) {
         return body.get(key);
+    }
+
+    public HttpSession getSession() {
+        if (session == null) {
+            Cookie sessionCookie = cookies.get(HttpSession.SESSION_COOKIE_KEY);
+            return this.session = HttpSession.getSession(sessionCookie.getValue());
+        }
+        return session;
     }
 
     @Override
